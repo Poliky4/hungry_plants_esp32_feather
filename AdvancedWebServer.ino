@@ -1,5 +1,4 @@
 #include <WiFi.h>
-#include <WiFiClient.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
 
@@ -10,41 +9,39 @@ bool hasWifi = false;
 
 WebServer server(80);
 
-const int led = 13;
-
 void handleRoot()
 {
-  digitalWrite(led, 1);
   char temp[400];
   int sec = millis() / 1000;
   int min = sec / 60;
   int hr = min / 60;
 
-  snprintf(temp, 400,
-
-           "<html>\
-  <head>\
-    <meta http-equiv='refresh' content='5'/>\
-    <title>ESP32 Demo</title>\
-    <style>\
-      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-    </style>\
-  </head>\
-  <body>\
-    <h1>Hello from ESP32!</h1>\
-    <p>Uptime: %02d:%02d:%02d</p>\
-    <img src=\"/test.svg\" />\
-  </body>\
-</html>",
-
-           hr, min % 60, sec % 60);
+  snprintf(
+    temp,
+    400,
+    "<html>\
+      <head>\
+        <meta http-equiv='refresh' content='5'/>\
+        <title>ESP32 Demo</title>\
+        <style>\
+          body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+        </style>\
+      </head>\
+      <body>\
+        <h1>Hello from ESP32!</h1>\
+        <p>Uptime: %02d:%02d:%02d</p>\
+        <img src=\"/test.svg\" />\
+      </body>\
+    </html>",
+    hr,
+    min % 60,
+    sec % 60
+  );
   server.send(200, "text/html", temp);
-  digitalWrite(led, 0);
 }
 
 void handleNotFound()
 {
-  digitalWrite(led, 1);
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += server.uri();
@@ -60,25 +57,33 @@ void handleNotFound()
   }
 
   server.send(404, "text/plain", message);
-  digitalWrite(led, 0);
 }
 
 void handleWifi() {
-  const String inputSSID = server.arg("ssid");
-  
-  const String inputPW = server.arg("pw");
- 
-  Serial.println("WIFI? " + inputSSID + " " + inputPW);
-  server.send(200, "text/html", inputSSID + " " + inputPW);
-  
-  // WiFiClient wifi.begin(inputPW, inputSSID);
-  // delay(3000);
-  
-
   if(WiFi.status() == WL_CONNECTED) {
     Serial.println("Connected to wifi!");
+    server.send(
+      200,
+      "text/html", "<h1>You Connected to a new wifi successfully!</h1>,"
+    );
   } else {
     Serial.println("wifi connection failed!");
+    String inputSSID = server.arg("ssid");
+    String inputPWD = server.arg("pwd");
+
+    int ssidLength = inputSSID.length() + 1;
+    char newSSID[ssidLength];
+    inputSSID.toCharArray(newSSID, ssidLength);
+    
+    int pwdLength = inputPWD.length() + 1;
+    char newPWD[pwdLength];
+    inputPWD.toCharArray(newPWD, pwdLength);
+  
+    Serial.println("WIFI? " + inputSSID + " " + inputPWD);
+    server.send(200, "text/html", inputSSID + " " + inputPWD);
+    
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(newSSID, newPWD);    
   }
 }
 
@@ -106,6 +111,8 @@ void setupWebserver()
   Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.print("MAC: ");
+  Serial.println(WiFi.macAddress());
 
   if (MDNS.begin("esp32"))
   {
@@ -124,14 +131,10 @@ void setupWebserver()
 
 void setup(void)
 {
-  pinMode(led, OUTPUT);
-  digitalWrite(led, 0);
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
   WiFi.begin();
-  Serial.println("");
 
-  // Wait for connection
   for (size_t i = 0; i < 3; i++)
   {
     if (WiFi.status() == WL_CONNECTED)
